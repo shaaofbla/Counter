@@ -3,38 +3,39 @@ package io;
 import com.illposed.osc.OSCPortIn;
 import java.util.concurrent.TimeUnit;
 
-public class CrappyBirdInput extends ProcessInput2Output implements Runnable {
-    private OSCPortIn receiver;
+public class CrappyBirdInput implements Runnable {
+    public OSCPortIn receiver;
     private String Name;
-    private Thread CrappyThread;
-    private String OSCAddress;
+    private Thread thread;
     private CrappyBirdListener listener;
-    private double TotalVolumne;
-    private int HighScore;
-    private int Score;
+    public OscVariable2Send[] Variables = new OscVariable2Send[3];
 
-
-    public void setTotalVolumne(double totalVolumne) {
-        TotalVolumne += totalVolumne;
+    private void setTotalVolumne(double totalVolume) {
+        this.Variables[0].Variable += totalVolume;
+        this.Variables[0].setMsg();
     }
 
-    public void setHighScore(int highScore) {
-        HighScore = highScore;
+    private void setHighScore(int highScore) {
+        this.Variables[1].Variable = (double) highScore;
+        this.Variables[1].setMsg();
     }
 
-    public void setScore(int score) {
-        Score += score;
+    private void setTotalScore(int score) {
+        this.Variables[2].Variable += score;
+        this.Variables[2].setMsg();
     }
 
-    public CrappyBirdInput(int nmbrOutputs, int PortIn, String Name) {
-        super(nmbrOutputs);
+    CrappyBirdInput(int PortIn, String Name) {
+
         try {
             this.Name = Name;
-            this.OSCAddress = "/" + Name;
-            System.out.println(this.OSCAddress);
+            String OSCInAddress = "/" + Name;
             this.listener = new CrappyBirdListener();
             this.receiver = new OSCPortIn(PortIn);
-            this.receiver.addListener("/CrappyBird", this.listener);//
+            this.receiver.addListener(OSCInAddress, this.listener);
+            this.Variables[0] = new OscVariable2Send("TotalVolume");
+            this.Variables[1] = new OscVariable2Send("HighScore");
+            this.Variables[2] = new OscVariable2Send("TotalScore");
         } catch (java.net.SocketException e) {
             e.printStackTrace();
         }
@@ -46,12 +47,9 @@ public class CrappyBirdInput extends ProcessInput2Output implements Runnable {
         while (true) {
             try {
                 TimeUnit.MILLISECONDS.sleep(500);
-                setHighScore(this.listener.HighScore);
-                setScore(this.listener.Score);
-                setTotalVolumne(this.listener.Volume);
-                System.out.println(this.TotalVolumne);
-                System.out.println(this.HighScore);
-                System.out.println(this.Score);
+                this.setHighScore(this.listener.HighScore);
+                this.setTotalScore(this.listener.Score);
+                this.setTotalVolumne(this.listener.Volume);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -60,9 +58,9 @@ public class CrappyBirdInput extends ProcessInput2Output implements Runnable {
 
     public void start() {
         System.out.println("Starting: " + this.Name);
-        if (this.CrappyThread == null) {
-            this.CrappyThread = new Thread(this, this.Name);
-            this.CrappyThread.start();
+        if (this.thread == null) {
+            this.thread = new Thread(this, this.Name);
+            this.thread.start();
         }
     }
 

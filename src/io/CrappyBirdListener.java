@@ -11,15 +11,15 @@ public class CrappyBirdListener implements OSCListener{
     public int HighScore;
     public Double Volume;
 
-    public void setScore(int score) {
+    private void setScore(int score) {
         this.Score = score;
     }
 
-    public void setHighScore(int highScore) {
+    private void setHighScore(int highScore) {
         this.HighScore = highScore;
     }
 
-    public void setVolume(Double volume) {
+    private void setVolume(Double volume) {
         this.Volume = volume;
     }
 

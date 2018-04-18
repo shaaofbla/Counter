@@ -1,86 +1,61 @@
 package io;
 
+import com.illposed.osc.OSCPortIn;
+
 import java.net.InetAddress;
+import java.net.SocketException;
+import java.util.concurrent.TimeUnit;
 
 
 public class TrackingCameraInput extends ProcessInput2Output {
+    public OSCPortIn receiver;
+    private String Name;
+    private Thread thread;
+    private TrackingCamereListener listener;
+    public OscVariable2Send[] Variables;
 
-    private final TCPServer TCPinput;
-    private TrackedPoint CamX;
-    private String xIdentifier = "/x";
-    private String yIdentifier = "/y";
-    private String rIdentifier = "/r";
-    private UDPServer[] udpOutput;
-
-    public TrackingCameraInput(int[] OutPorts,String[] String_Ips){
-        super(OutPorts.length);
-        CamX = new TrackedPoint();
-        TCPinput = new TCPServer(5007);
-        udpOutput = makeServerList(OutPorts, String_Ips);
+    //private TrackedPoint CamX;
+    TrackingCameraInput(int PortIn, String Name) {
+        try {
+            this.Name = Name;
+            String OSCInAddress = "/" + Name;
+            this.listener = new TrackingCamereListener();
+            this.receiver = new OSCPortIn(PortIn);
+            this.receiver.addListener(OSCInAddress, this.listener);
+            this.Variables[0] = new OscVariable2Send("x");
+            this.Variables[1] = new OscVariable2Send("y");
+            this.Variables[2] = new OscVariable2Send("r");
+            } catch (SocketException e) {
+                e.printStackTrace();
         }
-
-    public TrackingCameraInput(int[] OutPorts,InetAddress[] Inet_Ips){
-        super(OutPorts.length);
-        TCPinput = new TCPServer(5007);
-        udpOutput = makeServerList(OutPorts, Inet_Ips);
-        }
+    }
 
     private void setxCoord(Double xCoord) {
-        this.CamX.xCoordinate = xCoord;
+        this.Variables[0].Variable = xCoord;
+        this.Variables[0].setMsg();
     }
 
     private void setyCoord(Double yCoord) {
-        this.CamX.yCoordinate = yCoord;
+        this.Variables[1].Variable = yCoord;
+        this.Variables[1].setMsg();
     }
 
     private void setRadius(Double radius) {
-        this.CamX.radius = radius;
+        this.Variables[2].Variable = radius;
+        this.Variables[2].setMsg();
     }
 
     public void run() {
-        readInputMessage();
-        process();
-        send();
-    }
-
-    public void process() {
-        CamX.compute_Polar();
-        CamX.compute_cartesian_speed();
-        add_Vec2D_OutMessage(CamX.cartesian_speed,"/V");
-    }
-
-    public void readInputMessage() {
-        String message = TCPinput.readMessage();
-        CamX.setTimePoint();
-        parseInput(message);
-    }
-
-    private void parseInput(String message) {
-        String[] splits = message.split("\\s");
-        Double x = Double.parseDouble(splits[0]);
-        Double y = Double.parseDouble(splits[1]);
-        Double r = Double.parseDouble(splits[2]);
-        setxCoord(x);
-        setyCoord(y);
-        setRadius(r);
-    }
-
-    private void sendXYR(){
-       for (UDPServer udp :udpOutput){
-           System.out.println(udp.port);
-           try {
-               udp.sendOSC(Double.toString(CamX.xCoordinate), xIdentifier);
-               udp.sendOSC(Double.toString(CamX.yCoordinate), yIdentifier);
-               udp.sendOSC(Double.toString(CamX.radius), rIdentifier);
-           }  catch (Exception e) {
-               System.out.println("Receiver not up??");
-               System.out.println(udp.ip);
-               //e.printStackTrace();
-           }
-       }
-    }
-
-    private void send(){
-       sendXYR();
+        this.receiver.startListening();
+        while (true) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(500);
+                this.setxCoord(this.listener.x);
+                this.setyCoord(this.listener.y);
+                this.setRadius(this.listener.r);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
